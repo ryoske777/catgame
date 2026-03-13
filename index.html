@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>고양이 집사 테스트 (Progressive) 🐾</title>
+    <style>
+        :root { --bg-color: #fff9eb; --accent-color: #ff6b6b; }
+        body { 
+            text-align: center; font-family: 'Pretendard', sans-serif; 
+            background-color: var(--bg-color); overflow: hidden; margin: 0; 
+            user-select: none; -webkit-user-select: none;
+        }
+        #game-container { position: relative; width: 100vw; height: 100vh; cursor: crosshair; }
+        
+        /* 고양이 스타일 (기존보다 1.5배 커짐) */
+        #cat { 
+            position: absolute; 
+            width: 120px; height: 120px; 
+            font-size: 90px; /* 1.5배 확대 */
+            display: none; align-items: center; justify-content: center;
+            cursor: pointer; transition: transform 0.1s active; z-index: 10;
+        }
+        #cat:active { transform: scale(0.8); }
+
+        /* UI 레이어 */
+        #ui-layer { 
+            position: absolute; top: 20px; width: 100%; pointer-events: none; 
+            display: flex; justify-content: center; gap: 30px;
+        }
+        .info-box { 
+            background: rgba(255, 255, 255, 0.8); padding: 10px 20px; 
+            border-radius: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            font-size: 20px; font-weight: bold; color: #444;
+        }
+
+        .message {
+            position: absolute; color: var(--accent-color); font-weight: bold; 
+            font-size: 1.2rem; pointer-events: none;
+            animation: fadeUp 0.8s ease-out forwards; z-index: 20;
+        }
+        @keyframes fadeUp {
+            0% { opacity: 1; transform: translateY(0); }
+            100% { opacity: 0; transform: translateY(-60px); }
+        }
+
+        #start-btn {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            padding: 20px 40px; font-size: 1.8rem; background: #ffcc00; 
+            border: 4px solid #fff; border-radius: 50px; cursor: pointer;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1); transition: 0.2s;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <button id="start-btn">고양이랑 놀아주기 시작! 🐾</button>
+    
+    <div id="ui-layer">
+        <div class="info-box">점수: <span id="score-val">0</span></div>
+        <div class="info-box">시간: <span id="timer-val">15</span>초</div>
+    </div>
+
+    <div id="cat">🐱</div>
+</div>
+
+<script>
+    const cat = document.getElementById('cat');
+    const scoreVal = document.getElementById('score-val');
+    const timerVal = document.getElementById('timer-val');
+    const startBtn = document.getElementById('start-btn');
+    const container = document.getElementById('game-container');
+
+    let score = 0;
+    let timeLeft = 15;
+    let gameTimeout; // 점진적 난이도를 위해 Timeout 사용
+    let timerInterval;
+    let currentDelay = 1200; // 초기 이동 대기 시간 (1.2초)
+
+    const messages = ["냥!", "골골골~", "집사야 더!", "아이 좋아!", "심쿵!", "🐾", "야옹~", "기분 최고!"];
+    const catEmojis = ["🐱", "😸", "😻", "😽", "😺"];
+
+    function moveCat() {
+        const margin = 150; // 커진 크기에 맞춰 마진 조정
+        const maxX = window.innerWidth - margin;
+        const maxY = window.innerHeight - margin;
+        
+        const randomX = Math.max(50, Math.random() * maxX);
+        const randomY = Math.max(50, Math.random() * maxY);
+        
+        cat.style.left = `${randomX}px`;
+        cat.style.top = `${randomY}px`;
+        cat.innerText = catEmojis[Math.floor(Math.random() * catEmojis.length)];
+
+        // 난이도 공식: 점수가 1점 오를 때마다 이동 속도가 40ms씩 빨라짐 (최소 350ms)
+        currentDelay = Math.max(350, 1200 - (score * 40));
+        
+        // 기존 실행 취소 후 새로운 속도로 예약
+        clearTimeout(gameTimeout);
+        gameTimeout = setTimeout(moveCat, currentDelay);
+    }
+
+    function showMessage(x, y) {
+        const msg = document.createElement('div');
+        msg.className = 'message';
+        msg.innerText = messages[Math.floor(Math.random() * messages.length)];
+        msg.style.left = `${x}px`;
+        msg.style.top = `${y}px`;
+        container.appendChild(msg);
+        setTimeout(() => msg.remove(), 800);
+    }
+
+    cat.addEventListener('mousedown', (e) => {
+        score++;
+        scoreVal.innerText = score;
+        showMessage(e.clientX, e.clientY);
+        moveCat(); // 클릭 즉시 다음 위치로 (이때 currentDelay 갱신됨)
+    });
+
+    function startGame() {
+        score = 0;
+        timeLeft = 15;
+        currentDelay = 1200; // 속도 초기화
+        scoreVal.innerText = score;
+        timerVal.innerText = timeLeft;
+        startBtn.style.display = 'none';
+        cat.style.display = 'flex';
+        moveCat();
+
+        timerInterval = setInterval(() => {
+            timeLeft--;
+            timerVal.innerText = timeLeft;
+            if (timeLeft <= 0) endGame();
+        }, 1000);
+    }
+
+    function endGame() {
+        clearInterval(timerInterval);
+        clearTimeout(gameTimeout);
+        cat.style.display = 'none';
+        startBtn.style.display = 'block';
+        startBtn.innerText = `최종 점수: ${score}점! 다시 도전?`;
+        
+        let feedback = score > 25 ? "전설의 고양이 마스터!" : score > 15 ? "훌륭한 집사군요!" : "분발하세요!";
+        alert(`게임 종료! ${score}점입니다. ${feedback}`);
+    }
+
+    startBtn.addEventListener('click', startGame);
+    window.addEventListener('resize', () => {
+        if(cat.style.display === 'flex') moveCat();
+    });
+</script>
+
+</body>
+</html>
