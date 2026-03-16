@@ -508,8 +508,8 @@
     const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyXogX_j_gj1qVm0k0stvuMT4GQJRmFVqyXJ0yXuYW4kR9HA6VEDWjUbgyK4MqsjBtp/exec';
     const GAME_DURATION = 20;
     const BASE_DELAY = 1200;
-    const MIN_DELAY = 220;
-    const DELAY_DECREASE = 40;
+    const MIN_DELAY = 400;
+    const DELAY_DECREASE = 25;
     const COMBO_WINDOW = 900;       // ms to maintain combo
     const FEVER_THRESHOLD = 10;     // combo needed for fever
     const FEVER_DURATION = 4000;    // ms
@@ -744,7 +744,7 @@
       }
 
       // Ghost cats have shorter display time
-      const delayMod = chosen.type === 'ghost' ? 0.6 : 1;
+      const delayMod = chosen.type === 'ghost' ? 0.75 : 1;
       currentDelay = Math.max(MIN_DELAY, BASE_DELAY - (score * DELAY_DECREASE));
 
       // Fever = slower cat (easier to click)
