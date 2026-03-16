@@ -167,6 +167,30 @@
     }
     body.fever-active #level-display { color: #ff6b6b; }
 
+    /* Mega Cat during fever */
+    body.fever-active #cat {
+      width: 240px;
+      height: 240px;
+      font-size: 180px;
+      filter: drop-shadow(0 0 24px #ff6b6b) drop-shadow(0 0 48px rgba(255,107,107,0.4));
+      transition: width 0.3s, height 0.3s, font-size 0.3s, filter 0.3s;
+    }
+
+    #fever-hits {
+      position: fixed;
+      bottom: 50px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 18px;
+      font-weight: 700;
+      color: #ff6b6b;
+      z-index: 90;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    body.fever-active #fever-hits { opacity: 1; }
+
     /* ── Countdown ── */
     #countdown {
       position: fixed;
@@ -472,7 +496,7 @@
         <li><strong>방법:</strong> 화면에 나타나는 고양이를 클릭하세요.</li>
         <li><strong>시간:</strong> 20초 동안 진행됩니다.</li>
         <li><strong>콤보:</strong> 빠르게 연속 클릭하면 콤보 보너스!</li>
-        <li><strong>피버:</strong> 콤보 게이지를 채우면 피버 모드 발동!</li>
+        <li><strong>피버:</strong> 콤보 게이지를 채우면 거대 고양이 등장! 연타 5회마다 보너스!</li>
         <li>🌟 <strong>황금 고양이</strong> = 3배 점수</li>
         <li>🌈 <strong>무지개 고양이</strong> = 5배 점수</li>
         <li>👻 <strong>유령 고양이</strong> = 2배 (빠름!)</li>
@@ -498,6 +522,7 @@
     <div id="fever-flash"></div>
     <div id="fever-bar-container"><div id="fever-bar"></div></div>
     <div id="level-display">Lv.1</div>
+    <div id="fever-hits"></div>
     <div id="countdown"></div>
   </div>
 
@@ -513,7 +538,7 @@
     const COMBO_WINDOW = 900;       // ms to maintain combo
     const FEVER_THRESHOLD = 10;     // combo needed for fever
     const FEVER_DURATION = 4000;    // ms
-    const FEVER_MULTIPLIER = 2;
+    const FEVER_HIT_BONUS = 3;     // bonus points every 5 hits during fever
 
     // ── DOM ──
     const $ = id => document.getElementById(id);
@@ -533,6 +558,7 @@
     const fakeCursor = $('fake-cursor');
     const timerBar = $('timer-bar');
     const feverBar = $('fever-bar');
+    const feverHitsDisplay = $('fever-hits');
     const levelDisplay = $('level-display');
     const countdown = $('countdown');
     const bestScoreEl = $('best-score');
@@ -558,6 +584,7 @@
     let isFever = false;
     let feverTimeout = null;
     let feverCount = 0;
+    let feverHits = 0;
 
     // Stats
     let totalClicks = 0;
@@ -747,11 +774,8 @@
       const delayMod = chosen.type === 'ghost' ? 0.75 : 1;
       currentDelay = Math.max(MIN_DELAY, BASE_DELAY - (score * DELAY_DECREASE));
 
-      // Fever = slower cat (easier to click)
-      const feverMod = isFever ? 1.5 : 1;
-
       clearTimeout(gameTimeout);
-      gameTimeout = setTimeout(moveCat, currentDelay * delayMod * feverMod);
+      gameTimeout = setTimeout(moveCat, currentDelay * delayMod);
 
       // Level display
       const level = Math.min(10, Math.floor(score / 5) + 1);
@@ -815,10 +839,12 @@
       isFever = true;
       feverCount++;
       feverGauge = 0;
+      feverHits = 0;
       feverBar.style.width = '100%';
+      feverHitsDisplay.textContent = '🔥 연타 0/5';
       document.body.classList.add('fever-active');
       sfxFever();
-      showMessage(window.innerWidth / 2, window.innerHeight / 2 - 40, '🔥 FEVER MODE! 🔥', 'fever-msg');
+      showMessage(window.innerWidth / 2, window.innerHeight / 2 - 40, '🔥 MEGA CAT! 🔥', 'fever-msg');
       checkAchievements();
 
       // Fever countdown on the bar
@@ -833,8 +859,10 @@
       clearTimeout(feverTimeout);
       feverTimeout = setTimeout(() => {
         isFever = false;
+        feverHits = 0;
         document.body.classList.remove('fever-active');
         feverBar.style.width = '0%';
+        feverHitsDisplay.textContent = '';
       }, FEVER_DURATION);
     }
 
@@ -870,10 +898,23 @@
       // Calculate points
       const basePoints = catInfo.points;
       const comboBonus = getComboBonus();
-      const feverMult = isFever ? FEVER_MULTIPLIER : 1;
-      const earned = basePoints * comboBonus * feverMult;
+      const earned = basePoints * comboBonus;
 
       score += earned;
+
+      // Mega cat hit bonus during fever
+      let feverBonus = 0;
+      if (isFever) {
+        feverHits++;
+        feverHitsDisplay.textContent = `🔥 연타 ${feverHits % 5}/5`;
+        if (feverHits % 5 === 0) {
+          feverBonus = FEVER_HIT_BONUS;
+          score += feverBonus;
+          showMessage(window.innerWidth / 2, window.innerHeight / 2 - 80, `⚡ 연타 보너스 +${feverBonus}점!`, 'combo-msg');
+          sfxCombo();
+        }
+      }
+
       scoreVal.textContent = score;
 
       // Update combo
@@ -1065,6 +1106,7 @@
         feverGauge = 0;
         isFever = false;
         feverCount = 0;
+        feverHits = 0;
         totalClicks = 0;
         hitClicks = 0;
         specialCatsCaught = 0;
@@ -1077,6 +1119,7 @@
         comboVal.textContent = '0';
         comboDisplay.classList.remove('active');
         feverBar.style.width = '0%';
+        feverHitsDisplay.textContent = '';
         timerBar.style.width = '100%';
         timerBar.style.background = 'linear-gradient(90deg, #ff6b6b, #ffcc00)';
         document.body.classList.remove('fever-active');
@@ -1098,7 +1141,9 @@
       clearTimeout(comboTimer);
       isPlaying = false;
       isFever = false;
+      feverHits = 0;
       document.body.classList.remove('fever-active');
+      feverHitsDisplay.textContent = '';
       cat.style.display = 'none';
       cat.className = '';
 
